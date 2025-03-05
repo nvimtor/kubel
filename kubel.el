@@ -301,7 +301,7 @@ CMD is the command string to run."
   (kubel--log-command "kubectl-command" cmd)
   (with-output-to-string
     (with-current-buffer standard-output
-      (shell-command cmd t "*kubel stderr*"))))
+      (shell-command cmd t nil))))
 
 (defvar-local kubel-namespace "default"
   "Current namespace.")
