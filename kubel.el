@@ -226,6 +226,13 @@
   :type 'integer
   :group 'kubel)
 
+(defcustom kubel-pop-to-buffer-on-exec nil
+  "Controls whether kubel will switch to output buffers after executing commands.
+When set to nil, command output buffers remain in the background and results
+show in the minibuffer instead."
+  :type 'boolean
+  :group 'kubel)
+
 (defcustom kubel-list-wide nil
   "Control whether list views show additional colums.
 
@@ -495,17 +502,27 @@ NAME is the buffer name."
   "Return the error buffer name for the PROCESS-NAME."
   (format "*%s:err*" process-name))
 
-(defun kubel--sentinel (callback)
+(defun kubel--print-resource-buffer-output (resource-buffer-name)
+  (with-current-buffer (get-buffer resource-buffer-name)
+    (let ((output (string-trim (buffer-string))))
+      (unless (string-empty-p output)
+        (when (> (length output) 80)
+          (setq output (concat (substring output 0 77) "...")))
+        (message "%s" output)))))
+
+(defun kubel--sentinel (callback resource-buffer-name)
   "Sentinel function used by KUBEL--EXEC.
 
 CALLBACK is called when process completes successfully.
-"
+RESOURCE-BUFFER-NAME is the name of the buffer that contains the output of kubectl."
   (lambda (process event)
     (let ((process-name (process-name process))
           (exit-status (process-exit-status process)))
       (kubel--append-to-process-buffer (format "[%s]\nexit-code: %s" process-name exit-status))
       (if (eq 0 exit-status)
-          (when callback (funcall callback))
+          (progn
+            (when callback (funcall callback))
+            (kubel--print-resource-buffer-output resource-buffer-name))
         (let ((err (with-current-buffer (kubel--process-error-buffer process-name)
                      (buffer-string))))
           (kubel--append-to-process-buffer (format "error: %s" err))
@@ -530,11 +547,12 @@ READONLY If true buffer will be in readonly mode(view-mode)."
     (kubel--log-command process-name cmd)
     (make-process :name process-name
                   :buffer buffer-name
-                  :sentinel (kubel--sentinel callback)
+                  :sentinel (kubel--sentinel callback buffer-name)
                   :file-handler t
                   :stderr error-buffer
                   :command cmd)
-    (pop-to-buffer buffer-name)
+    (when kubel-pop-to-buffer-on-exec
+      (pop-to-buffer buffer-name))
     (if readonly
         (with-current-buffer buffer-name
           (view-mode)))))
@@ -660,8 +678,8 @@ TYPENAME is the resource type/name."
   "Kill the current buffer."
   (interactive)
   (when (or (not (buffer-modified-p))
-	    (not kubel-kill-buffer-query)
-	    (yes-or-no-p "Resource modified; kill anyway? "))
+      (not kubel-kill-buffer-query)
+      (yes-or-no-p "Resource modified; kill anyway? "))
     (kill-buffer (current-buffer))))
 
 (defvar kubel-yaml-editing-mode-map
