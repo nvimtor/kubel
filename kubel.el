@@ -551,7 +551,11 @@ READONLY If true buffer will be in readonly mode(view-mode)."
                   :file-handler t
                   :stderr error-buffer
                   :command cmd)
-    (when kubel-pop-to-buffer-on-exec
+    (when (or
+           kubel-pop-to-buffer-on-exec
+           (string= "get" (car args))
+           (string= "logs" (car args))
+           )
       (pop-to-buffer buffer-name))
     (if readonly
         (with-current-buffer buffer-name
