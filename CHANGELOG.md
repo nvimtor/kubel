@@ -18,12 +18,17 @@ All notable changes to this project will be documented in this file.
 - `kubel-kill-buffer` command to cancel an edit buffer without applying changes
 - Support for "wide" list view
 - Support for `eat` terminal emulator
+- `kubel-set-namespace` support for optional parameter to refresh the namespace cache
 
 ### Changed
 - Remove suffix "(default)" when acting on resources of StorageClasses
 - Better parsing of the kubectl version string via JSON
 - Fix describe resources not going to top of buffer
 - using -- for all kubectl exec uses
+- Fix `kubel--exec` doesn't work on remote systems
+- Fix `dir-prefix` for TRAMP without explicitly specifically the username
+- vterm sessions to use their own buffers
+- case consistent resource names ("pods)
 
 ### Removed
 - `kubel-kubernetes-version` no longer cares about version patch
