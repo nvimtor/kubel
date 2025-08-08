@@ -867,7 +867,8 @@ If called with a prefix argument REFRESH, refreshes
 the context caches, including the cached resource list."
   (interactive "P")
   (when refresh (kubel--invalidate-context-caches))
-  (let* ((namespace (completing-read "Namespace: " (kubel--list-namespace)
+  (let* ((old-buffer (current-buffer))
+         (namespace (completing-read "Namespace: " (kubel--list-namespace)
                                      nil nil nil nil "default"))
          (kubel--buffer (get-buffer (kubel--buffer-name)))
          (last-default-directory (when kubel--buffer
@@ -876,22 +877,27 @@ the context caches, including the cached resource list."
       (setq kubel-namespace namespace)
       (kubel--add-namespace-to-history namespace)
       (switch-to-buffer (current-buffer))
+      (kill-buffer old-buffer)
       (kubel-refresh last-default-directory))))
 
 (defun kubel-set-context ()
   "Set the context."
   (interactive)
-  (let* ((kubel--buffer (get-buffer (kubel--buffer-name)))
+  (let* ((old-context kubel-context)
+         (old-buffer (current-buffer))
+         (kubel--buffer (get-buffer (kubel--buffer-name)))
          (last-default-directory (when kubel--buffer (with-current-buffer kubel--buffer default-directory))))
-    (with-current-buffer (clone-buffer)
-      (setq kubel-context
-            (completing-read
-             "Select context: "
-             (split-string (kubel--exec-to-string (format "%s config view -o jsonpath='{.contexts[*].name}'" kubel-kubectl)) " ")))
-      (kubel--invalidate-context-caches)
-      (setq kubel-namespace "default")
-      (switch-to-buffer (current-buffer))
-      (kubel-refresh last-default-directory))))
+    (setq kubel-context
+          (completing-read
+           "Select context: "
+           (split-string (kubel--exec-to-string (format "%s config view -o jsonpath='{.contexts[*].name}'" kubel-kubectl)) " ")))
+    (when (not (string= kubel-context old-context))
+      (with-current-buffer (clone-buffer)
+        (kubel--invalidate-context-caches)
+        (setq kubel-namespace "default")
+        (switch-to-buffer (current-buffer))
+        (kill-buffer old-buffer)
+        (kubel-refresh last-default-directory)))))
 
 (defun kubel--add-selector-to-history (selector)
   "Add SELECTOR to history if it isn't there already."
@@ -937,15 +943,20 @@ If called with a prefix argument REFRESH, refreshes
 the context caches, including the cached resource list."
   (interactive "P")
   (when refresh (kubel--invalidate-context-caches))
-  (let* ((current-buffer-name (kubel--buffer-name))
+  (let* ((current-buffer (current-buffer))
+         (current-resource kubel-resource)
+         (current-buffer-name (kubel--buffer-name))
          (resource-list (kubel--kubernetes-resources-list))
          (kubel--buffer (get-buffer current-buffer-name))
          (last-default-directory (when kubel--buffer (with-current-buffer kubel--buffer default-directory))))
-    (with-current-buffer (clone-buffer)
-      (setq kubel-resource
-            (completing-read "Select resource: " resource-list))
-      (switch-to-buffer (current-buffer))
-      (kubel-refresh last-default-directory))))
+
+    (setq kubel-resource
+          (completing-read "Select resource: " resource-list))
+    (when (not (string= kubel-resource current-resource))
+      (with-current-buffer (clone-buffer)
+        (switch-to-buffer (current-buffer))
+        (kill-buffer current-buffer)
+        (kubel-refresh last-default-directory)))))
 
 (defun kubel-set-output-format ()
   "Set output format of kubectl."
